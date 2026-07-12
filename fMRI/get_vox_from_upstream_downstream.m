@@ -1,0 +1,86 @@
+function [striosomal_vox] = get_vox_from_upstream_downstream(corrs, corrs_to_whole_br, voxel_ref, dms_name, brain_region_names, rankings, regions_to_hotspot, cortical_regions, literature_regions)
+
+upstream_regions = rankings(rankings.upstream == 1, :).ROI_keyword;
+downstream_regions = rankings(rankings.upstream == 0, :).ROI_keyword;
+
+dms_index = find(brain_region_names{1,1}==dms_name);
+
+% get downstream lvls
+
+downstream_inhibit_striatal = [];
+downstream_excit_striatal = [];
+
+for i = 1:length(downstream_regions)
+   region = downstream_regions(i);
+   roi_index = find(brain_region_names{1,1}==region);
+
+   corr_matrix = corrs{1,1}{roi_index, dms_index};
+   if ismember(region, regions_to_hotspot)
+       [output_voxels, output_avg] = isolate_lh(corrs, voxel_ref, region, dms_name, brain_region_names);
+       corr_matrix = corr_matrix(output_voxels, :);
+   end
+
+    % convergence step: finding the indices of output vox where the number of 
+    % strio vox w/ a high cnx to that output vox is greater than 5
+    excit_hi_cnx = find(sum(corr_matrix > output_avg, 2) > 5);
+
+    % specifically split this up bc excitatory should all go to the same
+    % vox and inhibitory should all go to the same vox (that's different
+    % from the excitatory vox)
+    inhib_lo_cnx = find(sum(corr_matrix < -output_avg, 2) > 5);
+
+    excit_conv_corr_matrix = corr_matrix(excit_hi_cnx,:);
+    inhib_conv_corr_matrix = corr_matrix(inhib_lo_cnx,:);
+
+    avg_striatal_excitatory_corr = mean(excit_conv_corr_matrix, 'omitnan');
+    avg_striatal_inhibitory_corr = mean(inhib_conv_corr_matrix, 'omitnan');  
+
+    downstream_inhibit_striatal = [downstream_inhibit_striatal; avg_striatal_inhibitory_corr];
+    downstream_excit_striatal = [downstream_excit_striatal; avg_striatal_excitatory_corr];
+    
+end
+
+% get upstream weighted avg
+
+upstream_weighted_striatal = [];
+for j = 1:length(upstream_regions)
+    region = upstream_regions(j);
+    roi_index = find(brain_region_names{1,1}==region);
+    corr_matrix = corrs{1,1}{roi_index, dms_index};
+
+    weight_of_roi = rankings(rankings.ROI_keyword == string(region),:).weighting;
+    input_avg = NaN;
+
+    if ismember(region, regions_to_hotspot)
+       [input_voxels, input_avg] = isolate_lh(corrs, voxel_ref, region, dms_name, brain_region_names);
+       corr_matrix = corr_matrix(input_voxels, :);
+    end
+
+    if ismember(region, cortical_regions)
+        % calc input_avg here for cortical regions w/o hotspots 
+        if isnan(input_avg)
+            input_avg = mean(corr_matrix, "all", "omitnan") + 2*mean(std(corr_matrix),'omitnan');
+        end
+        % convergence step: finding the indices of input vox where the number of 
+        % input vox w/ a high cnx to that strio vox is greater than 5
+        excit_hi_cnx = find(sum(corr_matrix > input_avg, 1) > 10);
+    
+        excit_conv_corr_matrix = corr_matrix(:, excit_hi_cnx);
+
+        avg_striatal_corr = mean(excit_conv_corr_matrix, 'omitnan');
+    
+    elseif ismember(region, literature_regions)
+        avg_striatal_corr = [corrs_to_whole_br{1,1}{roi_index, dms_index}]';
+    end
+
+    weighted_input_corr = avg_striatal_corr * weight_of_roi;
+    upstream_weighted_striatal = [upstream_weighted_striatal; weighted_input_corr];
+end
+
+weighted_upstream_sum = sum(upstream_weighted_striatal);
+
+% combine upstream and downstream
+
+striosomal_vox = 0;
+
+end

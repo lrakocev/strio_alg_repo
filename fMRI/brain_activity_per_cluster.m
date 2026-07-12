@@ -1,0 +1,295 @@
+%% prelim analysis of mt sinai brain activity per cluster
+
+load('mt_sinai_demo_db.mat')
+load('imt_wkspc.mat')
+
+full_db_table = [];
+for j = 1:length(full_db)
+    sub_db = full_db{j}; 
+    try
+        sub_db = define_trial_units_via_events(sub_db);
+        full_db_table = [full_db_table; sub_db];
+    catch
+        existing_cols = full_db_table.Properties.VariableNames;
+        curr_cols = sub_db.Properties.VariableNames;
+        missing_cols = setdiff(existing_cols, curr_cols);
+        for k = 1:length(missing_cols)
+            missing_col = missing_cols{k};
+            sub_db.(missing_col) = repelem("0", height(sub_db), 1);
+        end
+        full_db_table = [full_db_table; sub_db];
+    end
+end
+
+full_db_table = renamevars(full_db_table, "subjectidnumber", "K01_SUBID");
+
+%%
+mt_sinai_w_clusters.shift_category = kmeans(mt_sinai_w_clusters.y_coord, 3);
+
+mt_sinai_w_clusters.ghr_bin = discretize(mt_sinai_w_clusters.aGHR, 4);
+mt_sinai_w_clusters.testos_bin = discretize(mt_sinai_w_clusters.TotalTestos_ng_dL_, 4);
+mt_sinai_w_clusters.estr_bin = discretize(mt_sinai_w_clusters.Estradiol_pg_mL_, 4);
+
+brain_cluster_table = outerjoin(full_db_table, mt_sinai_w_clusters, "MergeKeys", 1);
+
+%% mt sinai behavior table
+
+curr_sheet = "avg_data"; % "win_money"
+imt_table = readtable("C:\Users\lrako\OneDrive\Documents\human_dm_data\all_k_subject_imt_data.xlsx","Sheet",curr_sheet,"NumHeaderLines",0);
+
+rew = imt_table.Rew;
+cost = imt_table.Cost;
+
+curr_table = table;
+imt_formatted = [];
+var_names = imt_table.Properties.VariableNames;
+for j = 1:length(var_names)
+    var_name = var_names{j};
+    if var_name(1) == "K" & length(var_name) == 4
+        id = string(var_name(1:4));
+        responses = imt_table.(var_name);
+        rts = imt_table.(id + "_RT");
+            
+        ids_for_rows = repelem(id, length(responses),1);
+        curr_table.id = ids_for_rows;
+
+        if curr_sheet == "avg_data"
+            curr_table.raw_response = responses;
+            curr_table.approach_rate = (responses / 4) * 100;
+        else
+            number_responses = responses == "y";
+            curr_table.raw_response = number_responses;
+            curr_table.approach_rate = number_responses * 100;    
+        end
+
+        curr_table.reaction_time = rts;
+        curr_table.rew = rew;
+        curr_table.cost = cost;
+
+        imt_formatted = [imt_formatted; curr_table];
+    end
+end
+
+%% creating entropy + avg from the trial behavior
+
+summary_behavior_per_subj = [];
+
+unique_subs = unique(imt_formatted.id);
+
+for k = 1:length(unique_subs)
+    curr_id = unique_subs(k);
+    curr_sub_behavior_table = imt_formatted(imt_formatted.id == curr_id, :);
+
+    responses = curr_sub_behavior_table.raw_response / 4;
+    avg_appr = mean(responses);
+    
+    behavior_grid = reshape(responses, 7, 8);
+    behavior_entropy = entropy(behavior_grid);
+
+    k01_subid = extractAfter(curr_id,"K");
+    new_row.K01_SUBID = str2double(k01_subid);
+    new_row.avg_appr = avg_appr;
+    new_row.entropy = behavior_entropy; 
+
+    summary_behavior_per_subj = [summary_behavior_per_subj; new_row];
+end
+
+summary_behavior_per_subj = struct2table(summary_behavior_per_subj); 
+
+mt_sinai_w_clusters_n_stats = join(summary_behavior_per_subj,mt_sinai_w_clusters);
+
+%%
+
+mt_sinai_w_clusters_n_stats.appr_category = discretize(mt_sinai_w_clusters_n_stats.avg_appr, 4);
+mt_sinai_w_clusters_n_stats.ent_category = discretize(mt_sinai_w_clusters_n_stats.entropy, 4);
+
+mt_sinai_w_clusters_n_stats.ghr_bin = discretize(mt_sinai_w_clusters_n_stats.aGHR, 4);
+mt_sinai_w_clusters_n_stats.testos_bin = discretize(mt_sinai_w_clusters_n_stats.TotalTestos_ng_dL_, 4);
+mt_sinai_w_clusters_n_stats.estr_bin = discretize(mt_sinai_w_clusters_n_stats.Estradiol_pg_mL_, 4);
+
+brain_cluster_table_w_stats = outerjoin(full_db_table, mt_sinai_w_clusters_n_stats, "MergeKeys", 1);
+
+
+%% categorize by shift
+
+num_clusters = 4;
+hormones = ["aGHR", "TotalTestos_ng_dL_", "Estradiol_pg_mL_"];
+for h = 1 %1:3
+    hormone = hormones(h);
+    hormone_means = [];
+    hormone_stds = [];
+    figure
+    for m = 1:num_clusters
+        shift_cluster = mt_sinai_w_clusters(mt_sinai_w_clusters.cluster_idx == m, :);
+        hormone_lvl = shift_cluster.(hormone);
+        hormone_mean = mean(hormone_lvl, 'omitnan');
+        hormone_std = std(hormone_lvl, 'omitnan') / sqrt(height(shift_cluster));
+    
+        hormone_means = [hormone_means; hormone_mean];
+        hormone_stds = [hormone_stds; hormone_std];
+    end
+    errorbar(1:num_clusters, hormone_means, hormone_stds)
+    title(hormone)
+    xlabel("shift cluster number")
+    ylabel(hormone + " level")
+    
+end
+
+%% brain activity per cluster
+
+type = "ent_category"; % appr_category
+brain_cluster_table = brain_cluster_table_w_stats;
+ 
+num_clusters = 4;
+brain_cols = existing_cols(6:end-1);
+for i = 1:length(brain_cols)
+    curr_br = brain_cols{i};
+    figure
+    br_bars = [];
+    br_errs = [];
+    for m = 1:num_clusters
+        hormone_lvl_table = brain_cluster_table(brain_cluster_table.(type) == m, :);
+        num_unique_subs = length(unique(hormone_lvl_table.K01_SUBID));
+        try
+            act_list = hormone_lvl_table.(curr_br);
+            act_list = act_list(act_list ~= 0, :);
+            avg_br_act = mean(act_list, "omitnan");
+        catch
+            % some of the rows are strings - just including the mean in this block
+            % so it flags as an error
+            act_list = str2double(hormone_lvl_table.(curr_br));
+            act_list = act_list(act_list ~= 0, :);
+            avg_br_act = mean(act_list, "omitnan");
+        end
+        serr_br_act = std(act_list, "omitnan") / sqrt(num_unique_subs);
+        br_bars = [br_bars; avg_br_act];
+        br_errs = [br_errs; serr_br_act];
+    end
+    try
+        errorbar(1:num_clusters, br_bars, br_errs)
+        title("activity of " + curr_br + " across whole trial for " + type)
+    catch
+        continue
+    end
+end
+
+%% summary stats about the things
+
+figure
+subs_per_clust = [];
+hs = [];
+colors = distinguishable_colors(4);
+for m = 1:num_clusters
+    hormone_lvl_table = brain_cluster_table(brain_cluster_table.cluster_idx == m, :);
+    num_unique_subs = length(unique(hormone_lvl_table.K01_SUBID));
+    subs_per_clust = [subs_per_clust; num_unique_subs];
+   
+    h = scatter3(hormone_lvl_table.x_coord, hormone_lvl_table.y_coord, hormone_lvl_table.z_coord, 20, ...
+        colors(m, :));
+    hold on
+    hs = [hs; h];
+end
+legend(hs)
+xlabel("max")
+ylabel("shift")
+zlabel("slope")
+hold off
+figure
+bar(1:length(subs_per_clust), subs_per_clust)
+title("number of subjects per cluster")
+xlabel("cluster number")
+ylabel("num subjects")
+
+%% brain activity vs hormone level
+
+num_hormone_bins = 4;
+brain_cols = existing_cols(6:end-1);
+hormone_bin_names = ["ghr_bin"; "testos_bin"; "estr_bin"];
+for h = 1% 1:length(hormone_bin_names)
+    hormone_bin_name = hormone_bin_names(h);
+    for i = 14 %1:length(brain_cols)
+        curr_br = brain_cols{i};
+        figure
+        br_bars = [];
+        br_errs = [];
+        for m = 1:num_hormone_bins
+            hormone_lvl_table = brain_cluster_table(brain_cluster_table.(hormone_bin_name) == m, :);
+            num_unique_subs = length(unique(hormone_lvl_table.K01_SUBID));
+            try
+                act_list = hormone_lvl_table.(curr_br);
+                act_list = act_list(act_list ~= 0, :);
+                avg_br_act = mean(act_list, "omitnan");
+            catch
+                % some of the rows are strings - just including the mean in this block
+                % so it flags as an error
+                act_list = str2double(hormone_lvl_table.(curr_br));
+                act_list = act_list(act_list ~= 0, :);
+                avg_br_act = mean(act_list, "omitnan");
+            end
+            serr_br_act = std(act_list, "omitnan") / sqrt(num_unique_subs);
+            br_bars = [br_bars; avg_br_act];
+            br_errs = [br_errs; serr_br_act];
+        end
+        try
+            errorbar(1:num_clusters, br_bars, br_errs)
+            title("activity of " + curr_br + " across whole trial for lvls of " + hormone_bin_name)
+            xlabel(hormone_bin_name)
+            ylabel(curr_br + " avg activity lvl")
+        catch
+            continue
+        end
+    end
+end
+
+%% simple table for ki
+
+brain_cluster_table = outerjoin(full_db_table, mt_sinai_w_clusters, "MergeKeys", 1);
+
+strio_ghr_table = [];
+unique_subs = unique(mt_sinai_w_clusters.K01_SUBID);
+for j = 1:length(unique_subs)
+    curr_id = unique_subs(j);
+    sub_table = brain_cluster_table(brain_cluster_table.K01_SUBID == curr_id, :);
+
+    if ~isempty(sub_table.onset_in_seconds(1))
+        upstream_strio_act = mean(str2double(sub_table.upstream_striosome_nii),'omitnan');
+        downstream_strio_act = mean(str2double(sub_table.downstream_striosome_nii),'omitnan');
+        ghr_lvl = mean(sub_table.aGHR,'omitnan');
+    
+        row.K01_SUBID = curr_id;
+        row.upstream_strio_act = upstream_strio_act;
+        row.downstream_strio_act = downstream_strio_act;
+        row.ghr_lvl = ghr_lvl;
+    
+        strio_ghr_table = [strio_ghr_table; row];
+    else
+        continue
+    end
+
+end
+
+strio_ghr_table = struct2table(strio_ghr_table);
+%writetable(strio_ghr_table, "strio_activity_per_ghr_lvl.xlsx")
+
+%% 
+
+num_categories = 4;
+strio_ghr_table.upstream_strio_act(strio_ghr_table.upstream_strio_act == 0) = NaN;
+strio_ghr_table.downstream_strio_act(strio_ghr_table.downstream_strio_act == 0) = NaN;
+
+strio_ghr_table.real_strio = max(strio_ghr_table.downstream_strio_act, strio_ghr_table.upstream_strio_act);
+strio_ghr_table.ghr_category = discretize(strio_ghr_table.ghr_lvl, num_categories);
+
+ghr_bars = [];
+ghr_stds = [];
+for lvl = 1:num_categories
+    ghr_sub_table = strio_ghr_table(strio_ghr_table.ghr_category == lvl & (strio_ghr_table.real_strio > 0), :);
+    mean_strio = mean(ghr_sub_table.real_strio);
+    std_strio = std(ghr_sub_table.real_strio) / sqrt(height(ghr_sub_table));
+    ghr_bars = [ghr_bars; mean_strio];
+    ghr_stds = [ghr_stds; std_strio];
+end
+figure
+errorbar(1:num_categories, ghr_bars, ghr_stds)
+xlabel("ghr lvl")
+ylabel("strio activity")
