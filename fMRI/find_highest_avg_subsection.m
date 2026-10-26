@@ -25,7 +25,8 @@ function [highest_avg, best_coords, start_x, start_y, start_z, max_avg, max_std,
                 curr_std = mean(std(current_section,'omitmissing'),'all','omitnan');
                 count_nans = sum(isnan(current_section),'all');
                                 
-                if count_nans / volume >= 0.25
+                
+                if R*C*P > 500 & count_nans / volume >= 0.25
                     continue
                 end
 

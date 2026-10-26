@@ -1,5 +1,5 @@
 function [processed_activities,cross_corrs, strio_projecting_regions, matrix_projecting_regions, brain_region_names, voxel_ref,rankings] = ...
-    process_input_data(data_dir, all_subjects, use_cross_corr, dms_name, strio_filename)
+    process_input_data(data_dir, all_subjects, use_cross_corr, dms_name, strio_filename,rois_to_read)
 
 speedrun = true; 
 for s = 1:length(all_subjects)
@@ -7,7 +7,7 @@ for s = 1:length(all_subjects)
     
 
     [processed_activities,brain_region_names,...
-        n_region,voxel_ref,n_subject,n_tsteps] = load_data(data_dir,subject_names,'all');
+        n_region,voxel_ref,n_subject,n_tsteps] = load_data(data_dir,subject_names,'all',rois_to_read);
 
     
     [rankings, strio_projecting_regions, matrix_projecting_regions,control_regions,...

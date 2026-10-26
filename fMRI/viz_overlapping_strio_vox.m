@@ -10,7 +10,7 @@ for subj = 1:length(all_subjects)
     % store the data in voxel grids
     for vox=1:size(voxel_ref{subj}{dms_index},1)
         % note the coordinate change: index 1 is used for the min. voxel id
-        new_vox_idx = voxel_ref{subj}{dms_index}(vox,:)-min_coords{subj}+1;
+        new_vox_idx = voxel_ref{subj}{dms_index}(vox,:);%-min_coords{subj}+1;
 
         % basically, if vox in the right vox list, mark that labeled_region
         % and voxel_striosomality correctly

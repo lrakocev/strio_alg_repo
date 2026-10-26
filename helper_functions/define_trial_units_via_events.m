@@ -16,6 +16,6 @@ for j = 2:length(trial_sections)
 
 end
 
-subj_trial_table.trial_number = new_trial_list;
+subj_trial_table.trial_number = new_trial_list - 1;
 
 end

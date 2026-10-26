@@ -1,6 +1,11 @@
-function subj_scanner_behavior_table = fit_psychometric_to_scanner_behavior(subj_scanner_behavior_table, dirName, want_plot)
+function subj_scanner_behavior_table = fit_psychometric_to_scanner_behavior(subj_scanner_behavior_table, dirName, want_plot, file_name_info)
 
-subid = string(subj_scanner_behavior_table.participant(1));
+try
+    subid = string(subj_scanner_behavior_table.subjectidnumber(1));
+catch
+    subid = string(subj_scanner_behavior_table.participant(1));
+end
+
 
 rew_lvls = unique(subj_scanner_behavior_table.rew_lvls);
 cost_lvls = unique(subj_scanner_behavior_table.cost_lvls);
@@ -48,8 +53,8 @@ cost_val_from_psych = subj_scanner_behavior_table.cost_lvls;
 subj_scanner_behavior_table.complexity = rew_psych(rew_val_from_psych) - cost_psych(cost_val_from_psych);
 
 if want_plot
-    plot_psych_helper(cost_psych, cost_lvls,cost_appr_rates, dirName, subid, "cost")
-    plot_psych_helper(rew_psych, rew_lvls, rew_appr_rates, dirName, subid, "rew")
+    plot_psych_helper(cost_psych, cost_lvls,cost_appr_rates, dirName, subid, "cost",file_name_info)
+    plot_psych_helper(rew_psych, rew_lvls, rew_appr_rates, dirName, subid, "rew",file_name_info)
 end
 
 
@@ -70,7 +75,7 @@ end
 
 end
 
-function plot_psych_helper(fitobject3, x, y, dirName, subid, rew_or_cost)
+function plot_psych_helper(fitobject3, x, y, dirName, subid, rew_or_cost,file_name_info)
 
 figure
 plot(fitobject3,x.',y.');
@@ -79,7 +84,7 @@ ylabel("Choice")
 title("3 Param Sigmoid")
 fighandle3 = gcf;
 set(fighandle3, 'visible', 'on');
-saveas(fighandle3,strcat(dirName, "\", subid, "_", rew_or_cost, "_psych.fig"))
+saveas(fighandle3,strcat(dirName, "\", subid, "_", rew_or_cost, "_psych_" + file_name_info + ".fig"))
 close
 
 end
