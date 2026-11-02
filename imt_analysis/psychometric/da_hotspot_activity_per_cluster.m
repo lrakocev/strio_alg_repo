@@ -72,8 +72,8 @@ for j = 1:length(full_db)
             left_hotspot_activity, right_hotspot_activity] = ...
             da_hotspot_activity_per_subject(subj_event_table, subj_vox_table, all_clean_behavior);
 
-        right_striosomes = subj_vox_table.right_caudate_downstream_striosome_nii_vox{1,1}; 
-        left_striosomes = subj_vox_table.downstream_striosome_nii_vox{1,1}; 
+        right_striosomes = subj_vox_table.right_caudate_full_striosome_0_thresh{1,1}; 
+        left_striosomes = subj_vox_table.left_caudate_full_striosome_0_thresh{1,1}; 
 
     catch
         left_hotspot_activity = [];

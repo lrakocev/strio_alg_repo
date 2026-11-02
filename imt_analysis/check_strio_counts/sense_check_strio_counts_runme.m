@@ -22,7 +22,9 @@ strio_summary_from_scores_table = get_percent_strio_of_sttm_table(strio_summary_
 
 %% post ghr analysis strio check
 
-strio_ghr_table = check_strio_count_post_ghr_analysis(brain_cluster_table_w_stats);
+want_cols = "left_caudate_" + ["downstream_striosome_0_thresh"; "upstream_striosome_0_thresh";...
+    "full_striosome_0_thresh"];
+strio_ghr_table = check_strio_count_post_ghr_analysis(brain_cluster_table_w_stats, want_cols);
 
 %% check distributions of outputs
 

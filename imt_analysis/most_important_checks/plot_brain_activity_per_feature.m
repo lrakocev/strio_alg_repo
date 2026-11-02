@@ -25,13 +25,17 @@ for i = 1:length(brs_of_interest)
         br_errs = [br_errs; serr_br_act];
     end
     try
+
+        total_subs = length(unique(br_activity_table(~isnan(br_activity_table.(curr_br)), :).K01_SUBID));
+
         errorbar(1:num_categories, br_bars, br_errs)
         xlabel("bins of " + type )
         ylabel(curr_br + " activity lvl")
         title("avg activity of " + curr_br + " vs " + type)
-        subtitle("using plot_brain_activity_per_cluster.m")
-        saveas(gcf, save_to + "/" + string(date) + "/" + curr_br + "_v_" + type, ".fig")
-        saveas(gcf, save_to + "/" + string(date) + "/" + curr_br + "_v_" + type, ".svg")
+        subtitle("using plot_brain_activity_per_cluster.m, n = " + total_subs)
+        mkdir(save_to + "/" + string(date))
+        saveas(gcf, save_to + "/" + string(date) + "/" + curr_br + "_v_" + type, "fig")
+        saveas(gcf, save_to + "/" + string(date) + "/" + curr_br + "_v_" + type, "svg")
     catch
         continue
     end

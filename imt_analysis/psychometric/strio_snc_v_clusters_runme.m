@@ -1,6 +1,6 @@
 %% load relevant info
 
-%load("all_clean_behavior.mat")
+load("all_clean_behavior.mat")
 %load("all_vox_activity_all_subjects.mat")
 load('mt_sinai_demo_db.mat')
 
@@ -28,6 +28,7 @@ examine_cluster_info(rew_cluster_table, "rew_a", "rew_b", "rew_c", cluster_info_
 %% strio/snc/etc activity per cluster
 
 cluster_info_save_to =  'C:\Users\lrako\OneDrive\Documents\mt_sinai\cluster_info_' + string(date);
+mkdir(cluster_info_save_to)
 
  [left_hotspot_cluster_activity,right_hotspot_cluster_activity, ...
     left_hotspot_cluster_num_cnx, right_hotspot_cluster_num_cnx, ...
@@ -42,6 +43,8 @@ cluster_info_save_to =  'C:\Users\lrako\OneDrive\Documents\mt_sinai\cluster_info
 %% viz of cluster v strio/snc/etc activity in scanner using only in scanner clusters
 
 save_to = "C:\Users\lrako\OneDrive\Documents\mt_sinai\in_scanner_clusters_" + string(date);
+mkdir(save_to)
+
 
 run_all_bar_plots(left_hotspot_cluster_activity,right_hotspot_cluster_activity, ...
     left_hotspot_cluster_num_cnx, right_hotspot_cluster_num_cnx, ...
@@ -55,6 +58,7 @@ run_all_bar_plots(left_hotspot_cluster_activity,right_hotspot_cluster_activity, 
 %% viz of cluster v strio/snc/etc activity in scanner using in + out of scanner clusters
 
 in_scanner_save_to = "C:\Users\lrako\OneDrive\Documents\mt_sinai\in_scanner_combined_clustering_" + string(date);
+mkdir(in_scanner_save_to)
 
 in_scanner_combined_clusters = rew_cluster_table(rew_cluster_table.in_or_out == "in", :);
 
@@ -80,6 +84,7 @@ run_all_bar_plots(left_hotspot_cluster_activity,right_hotspot_cluster_activity, 
 
 
 out_of_scanner_save_to = "C:\Users\lrako\OneDrive\Documents\mt_sinai\out_of_scanner_combined_clustering_" + string(date);
+mkdir(out_of_scanner_save_to)
 
 out_scanner_combined_clusters = rew_cluster_table(rew_cluster_table.in_or_out == "out", :);
 
@@ -156,6 +161,26 @@ all_snc_strio_table = strio_snc_v_rew_cost_runme(full_db, all_clean_behavior, sa
 
 %%
 
+joint_snc_strio_table = [];
+for j= 1:length(all_snc_strio_table)
+    curr_table = all_snc_strio_table{1, j};
+    curr_table.hotspot_activity = mean(curr_table.hotspot_activity, 2,'omitnan' );
+    curr_table.left_strio_activity = mean(curr_table.left_strio_activity, 2,'omitnan' );
+    curr_table.right_strio_activity = mean(curr_table.right_strio_activity, 2,'omitnan' );
+    curr_table.vox_activity = [];
+    try
+        joint_snc_strio_table = [joint_snc_strio_table; curr_table];
+    catch
+        continue
+    end
+end
+
+rew_cluster_table = renamevars(rew_cluster_table, "participant", "subjectidnumber");
+all_snc_strio_table_w_clusters = outerjoin(joint_snc_strio_table, rew_cluster_table, "MergeKeys", 1, "Keys", {'subjectidnumber'});
+
+
+%%
+
 rew_lvl_save_to = "C:\Users\lrako\OneDrive\Documents\mt_sinai\activity_v_lvls_" + string(date);
 mkdir(rew_lvl_save_to)
 
@@ -169,7 +194,39 @@ plot_snc_strio_activity_v_rew(all_snc_strio_table, 5, "left_strio_activity", "co
 plot_snc_strio_activity_v_rew(all_snc_strio_table, 5, "right_strio_activity", "cost_lvls", rew_lvl_save_to)
 
 
+%%
+mt_sinai_w_clusters_n_stats = prep_mt_sinai_data_for_combining();
+joint_snc_strio_table = renamevars(joint_snc_strio_table,"subjectidnumber", "K01_SUBID");
 
+brain_snc_cluster_table_w_stats = outerjoin(joint_snc_strio_table, mt_sinai_w_clusters_n_stats, "MergeKeys", 1);
 
+%%
 
+all_brain_w_rew_lvls = outerjoin(joint_snc_strio_table, full_db_table, "MergeKeys", 1, "Keys", {'K01_SUBID','int_or_ext','onset_time_step','trial_number','trial_section'});
 
+%% 
+brs_of_interest = ["left_caudate_full_striosome_0_thresh"];
+types = ["cost_lvls"];
+num_bins = 5;
+for j = 1:length(types)
+    type = types(j);
+    plot_brain_activity_per_feature(all_brain_w_rew_lvls, type, brs_of_interest, num_bins, save_to)
+end
+
+%%
+brs_of_interest = ["Hb_mni_resamp_HEAD"];
+types = ["cluster_idx"; "appr_category"; "ent_category"; "ghr_bin"];
+num_bins = 4;
+for j = 1:length(types)
+    type = types(j);
+    plot_brain_activity_per_feature(brain_cluster_table_w_stats, type, brs_of_interest, num_bins, save_to)
+end
+
+%%
+brs_of_interest = ["hotspot_activity"];
+types = ["cluster_idx"; "appr_category"; "ent_category"; "ghr_bin"];
+num_bins = 4;
+for j = 1:length(types)
+    type = types(j);
+    plot_brain_activity_per_feature(brain_snc_cluster_table_w_stats, type, brs_of_interest, num_bins, save_to)
+end

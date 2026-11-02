@@ -3,18 +3,27 @@ function [left_strio_activity_w_trial_lvls, right_strio_activity_w_trial_lvls, s
     da_hotspot_activity_per_subject(subj_event_table, subj_vox_table, all_clean_behavior)
 
 % setup - getting relevant activity + coords
-[left_downstream_strio_activity, left_downstream_strio_coords] = remove_empty_vox_helper(subj_vox_table.downstream_striosome_nii_vox{1,1}, ...
-    subj_vox_table.downstream_striosome_nii_coords{1,1});
+try
+[left_downstream_strio_activity, left_downstream_strio_coords] = ...
+    remove_empty_vox_helper(subj_vox_table.left_caudate_downstream_striosome_0_thresh_vox{1,1}, ...
+    subj_vox_table.left_caudate_downstream_striosome_0_thresh_coords{1,1});
+catch
+    left_downstream_strio_activity = [];
+end
 
+try
 [right_downstream_strio_activity, right_downstream_strio_coords] = ...
-    remove_empty_vox_helper(subj_vox_table.right_caudate_downstream_striosome_nii_vox{1,1},...
-    subj_vox_table.right_caudate_downstream_striosome_nii_coords{1,1});
+    remove_empty_vox_helper(subj_vox_table.right_caudate_downstream_striosome_0_thresh_vox{1,1},...
+    subj_vox_table.right_caudate_downstream_striosome_0_thresh_coords{1,1});
+catch
+    right_downstream_strio_activity = [];
+end
 
-[snc_activity, snc_coords] = remove_empty_vox_helper(subj_vox_table.final_SN_vox{1,1}, ...
-    subj_vox_table.final_SN_coords{1,1});
+[snc_activity, snc_coords] = remove_empty_vox_helper(subj_vox_table.final_SN_resamp_HEAD_vox{1,1}, ...
+    subj_vox_table.final_SN_resamp_HEAD_coords{1,1});
 
-left_caudate_coords = subj_vox_table.left_caudate_coords{1,1};
-right_caudate_coords = subj_vox_table.right_caudate_coords{1,1};
+left_caudate_coords = subj_vox_table.left_caudate_resamp_coords{1,1};
+right_caudate_coords = subj_vox_table.right_caudate_resamp_coords{1,1};
 
 % merge behavior with trial data
 

@@ -26,12 +26,34 @@ for j = 1:length(full_db)
     
         all_snc_activity = snc_activity_w_trial_lvls.vox_activity;
     
-        left_and_right_snc_hotspot_vox = unique([left_strio_snc_hotspots; right_strio_snc_hotspots]);
+        try
+            left_and_right_snc_hotspot_vox = unique([left_strio_snc_hotspots; right_strio_snc_hotspots']);
+        catch
+            left_and_right_snc_hotspot_vox = unique([left_strio_snc_hotspots; right_strio_snc_hotspots]);
+
+        end
         hotspot_activity = all_snc_activity(:, left_and_right_snc_hotspot_vox);
     
+        snc_activity_w_trial_lvls.num_total_vox_in_snc = repelem(length(left_and_right_snc_hotspot_vox), height(all_snc_activity), 1);
+
+        snc_activity_w_trial_lvls.num_hotspot_vox_in_snc = repelem(length(left_and_right_snc_hotspot_vox), height(snc_activity_w_trial_lvls), 1);
         snc_activity_w_trial_lvls.hotspot_activity = hotspot_activity;
-        snc_activity_w_trial_lvls.left_strio_activity = left_strio_activity_w_trial_lvls.vox_activity;
-        snc_activity_w_trial_lvls.right_strio_activity = right_strio_activity_w_trial_lvls.vox_activity;
+
+        left_strio_activity_w_trial_lvls_vox_activity = left_strio_activity_w_trial_lvls.vox_activity;
+
+        if isempty(left_strio_activity_w_trial_lvls_vox_activity)
+            left_strio_activity_w_trial_lvls_vox_activity = repelem(NaN, height(snc_activity_w_trial_lvls), 1);
+        end
+
+        snc_activity_w_trial_lvls.left_strio_activity = left_strio_activity_w_trial_lvls_vox_activity;
+
+        right_strio_activity_w_trial_lvls_vox_activity = right_strio_activity_w_trial_lvls.vox_activity;
+
+         if isempty(right_strio_activity_w_trial_lvls_vox_activity)
+            right_strio_activity_w_trial_lvls_vox_activity = repelem(NaN, height(snc_activity_w_trial_lvls), 1);
+         end
+
+        snc_activity_w_trial_lvls.right_strio_activity = right_strio_activity_w_trial_lvls_vox_activity;
 
         all_sub_snc_activity{counter} = snc_activity_w_trial_lvls;
         counter = counter + 1;
