@@ -1,0 +1,18 @@
+failed_subs = [];
+dms_names = ["left-caudate"; "right-caudate"];
+for i = 1:2
+    dms_name = dms_names(i);
+    for k = 402:550
+        subid = string(k);
+        try
+            dms_mask_filename = "/sc/arion/projects/K01_VTA/users/rakocl01/"...
+                + subid + "/test/FS_ROI/" + dms_name + "_resamp+orig.nii";
+            get_mat_mask_on_server(subid, dms_name, dms_mask_filename)
+        catch
+            failed_subs = [failed_subs; subid];
+            continue
+        end
+    end
+end
+
+writelines(failed_subs, dms_name + '_failed_subs.txt');

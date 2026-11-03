@@ -1,0 +1,39 @@
+function [labeled_regions, voxel_striosomality] = viz_overlapping_strio_vox(all_subjects, brain_region_names, voxel_ref, region_name, strio_vox, strio_thresh)
+
+labeled_regions = zeros(256, 256, 256);
+voxel_striosomality = zeros(256, 256, 256);
+dms_index = find(brain_region_names{1,1} == region_name);
+%max_overlap = max(strio_vox,[],'all');
+
+for subj = 1:length(all_subjects)
+    min_coords{subj} = [nan nan nan];
+    min_coords{subj} = min(min_coords{subj}, min(voxel_ref{subj}{dms_index}));
+
+    
+    % store the data in voxel grids
+    for vox=1:size(voxel_ref{subj}{dms_index},1)
+        % note the coordinate change: index 1 is used for the min. voxel id
+        new_vox_idx = voxel_ref{subj}{dms_index}(vox,:)-min_coords{subj}+1;
+
+        % basically, if vox in the right vox list, mark that labeled_region
+        % and voxel_striosomality correctly
+        if ~isempty(strio_vox)
+            if strio_vox(vox) > strio_thresh % == max_overlap
+                labeled_regions{subj}(new_vox_idx(1),new_vox_idx(2),new_vox_idx(3)) = 99;
+                voxel_striosomality{subj}(new_vox_idx(1),new_vox_idx(2),new_vox_idx(3)) = 1;
+            else
+                labeled_regions{subj}(new_vox_idx(1),new_vox_idx(2),new_vox_idx(3)) = dms_index;
+                voxel_striosomality(new_vox_idx(1),new_vox_idx(2),new_vox_idx(3)) = 0;
+            end
+        
+        else
+            labeled_regions = [];
+            voxel_striosomality = [];
+            return
+        end
+        
+    end
+end
+    
+
+end
